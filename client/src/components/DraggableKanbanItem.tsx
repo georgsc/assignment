@@ -1,16 +1,18 @@
 import {Draggable} from "react-beautiful-dnd";
 import {KanbanItem} from "./KanbanItem";
 
-export function DraggableKanbanItem({
-                                        index,
-                                        item: {id, name}
-                                    }: { item: { id: string; name: string; done: boolean }, index: number }) {
-    return <Draggable draggableId={id}
-                      index={index}
+interface IProps {
+    index: any;
+    item: { id: string, name: string};
+}
+
+export function DraggableKanbanItem(props: IProps): JSX.Element {
+    return <Draggable draggableId={props.item.id}
+                      index={props.index}
     >
         {(provided) => (
             <KanbanItem {...provided.draggableProps} {...provided.dragHandleProps}
-                        title={name}
+                        title={props.item.name}
                         ref={provided.innerRef}/>
         )}
     </Draggable>;

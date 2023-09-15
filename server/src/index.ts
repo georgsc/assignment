@@ -3,65 +3,38 @@ import {graphqlHTTP} from 'express-graphql'
 import {buildSchema} from 'graphql'
 import {readFileSync} from 'fs'
 import cors from 'cors'
+import {PrismaClient} from "@prisma/client";
 
 const schema = buildSchema(readFileSync('./schema.graphql', 'utf-8'))
 
-const kanban = [
-    {
-        id: "column1",
-        name: 'Todo',
-        items: [
-            {
-                id: 'item1',
-                name: 'Item 1',
-                done: false
-            },
-            {
-                id: 'item2',
-                name: 'Item 2',
-                done: false
-            }
-        ]
-    },
-    {
-        id: "column2",
-        name: 'Doing',
-        items: [
-            {
-                id: 'item3',
-                name: 'Item 3',
-                done: false
-            },
-        ],
-    },
-    {
-        id: "column3",
-        name: 'Done',
-        items: [
-            {
-                id: 'item4',
-                name: 'Item 4',
-                done: true
-            }
-        ]
-    }
-];
+const prisma = new PrismaClient();
 
 const root = {
-    kanban: () => kanban,
-    moveItem: ({itemId, toListId, index}: {itemId: string, toListId: string, index: number}) => {
-        const columnFrom = kanban.find(column => column.items.find(item => item.id === itemId))
-        const columnTo = kanban.find(column => column.id === toListId)
-        if (!columnFrom || !columnTo) {
-            throw new Error('Column not found')
-        }
-        const item = columnFrom.items.find(item => item.id === itemId)
-        if (!item) {
-            throw new Error('Item not found')
-        }
-        columnFrom.items = columnFrom.items.filter(item => item.id !== itemId)
-        columnTo.items.splice(index, 0, item)
-        return kanban
+    kanban: async () => {
+        return prisma.kanbanColumn.findMany({
+            include: {
+                items: true
+            },
+        });
+    },
+    moveItem: async ({itemId, toListId, index}: {itemId: string, toListId: string, index: number}) => {
+        return prisma.kanbanItem.update({
+            where: {
+                id: parseInt(itemId)
+            },
+            data: {
+                kanbanColumnId: parseInt(toListId),
+            },
+        });
+    },
+    addItem: async ({name, columnId}: {name: string, columnId: string}) => {
+        return prisma.kanbanItem.create({
+            data: {
+                name: name,
+                done: false,
+                kanbanColumnId: parseInt(columnId)
+            },
+        });
     }
 }
 

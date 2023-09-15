@@ -3,7 +3,8 @@ type Query {
 }
 
 type Mutation {
-    moveItem(itemId: ID!, toListId: ID!, index: Int!): [KanbanColumn!]!
+    moveItem(itemId: ID!, toListId: ID!, index: Int!): KanbanItem!
+    addItem(name: String!, columnId: ID!): KanbanItem!
 }
 
 type KanbanColumn {

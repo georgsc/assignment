@@ -28,11 +28,17 @@ const MUTATE_MOVE_ITEM = graphql(/* GraphQL */`
         moveItem(itemId: $itemId, toListId: $toListId, index: $index) {
             id
             name
-            items {
-                id
-                name
-                done
-            }
+            done
+        }
+    }
+`)
+
+const MUTATE_ADD_ITEM = graphql(/* GraphQL */`
+    mutation AddItem($name: String!, $columnId: ID!) {
+        addItem(name: $name, columnId: $columnId) {
+            id
+            name
+            done
         }
     }
 `)
@@ -77,7 +83,17 @@ export function Kanban() {
         },
         // update
         onSuccess: (data, variables) => {
-            client.setQueryData(['kanban'], {kanban: data.moveItem})
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                    old?.kanban.map((column) => {
+                        if (column.id === variables.toListId) {
+                            const remainingItems = column.items.filter(item => item.id.toString() !== variables.itemId.toString());
+                            remainingItems.push(data.moveItem);
+                            return {...column, items: remainingItems}
+                        }
+                    });
+                    return old;
+                }
+            );
         }
     });
 
@@ -98,6 +114,32 @@ export function Kanban() {
 
     }, [])
 
+    const addMutation = useMutation({
+        mutationFn: async (variables: { name: string, columnId: string}) =>
+            request(
+                GRAPHQL_SERVER,
+                MUTATE_ADD_ITEM,
+                variables,
+            ),
+        onSuccess: (data, variables) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                    old?.kanban.map((column) => {
+                        if (column.id === variables.columnId) {
+                            const allItems = column.items;
+                            allItems.push(data.addItem);
+                            return {...column, items: allItems}
+                        }
+                    });
+                    return old;
+                }
+            )
+        }
+    });
+
+    function handleAddItem(name: string, columnId: string): void {
+        addMutation.mutate({name, columnId});
+    }
+
     return (
         <Box sx={{paddingBottom: 4}}>
             <DragDropContext onDragEnd={handleOnDragEnd}>
@@ -108,10 +150,16 @@ export function Kanban() {
                                {...provided.droppableProps}
                         >
                             {
-                                data?.kanban.map((list, index) => (
-                                    <DraggableKanbanList key={list.id} id={list.id} title={list.name} items={list.items}
-                                                         index={index}/>
-                                ))
+                                data?.kanban
+                                    .sort((a, b) => a.id > b.id ? 1 : -1)
+                                    .map((list, index) => (
+                                        <DraggableKanbanList key={list.id}
+                                                             id={list.id}
+                                                             title={list.name}
+                                                             items={list.items}
+                                                             handleAddItem={handleAddItem}
+                                                             index={index}/>
+                                    ))
                             }
                             {provided.placeholder}
                         </Stack>
