@@ -4,7 +4,7 @@ type Query {
 
 type Mutation {
     moveItem(itemId: ID!, toListId: ID!, index: Int!): KanbanItem!
-    addItem(name: String!, columnId: ID!): KanbanItem!
+    addItem(name: String!, columnId: ID!, index: Int!): KanbanItem!
 }
 
 type KanbanColumn {
@@ -17,4 +17,5 @@ type KanbanItem {
     id: ID!
     name: String!
     done: Boolean!
+    index: Int!
 }

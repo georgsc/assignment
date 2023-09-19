@@ -23,15 +23,17 @@ const root = {
                 id: parseInt(itemId)
             },
             data: {
+                index: index,
                 kanbanColumnId: parseInt(toListId),
             },
         });
     },
-    addItem: async ({name, columnId}: {name: string, columnId: string}) => {
+    addItem: async ({name, columnId, index}: {name: string, columnId: string, index: number}) => {
         return prisma.kanbanItem.create({
             data: {
                 name: name,
                 done: false,
+                index: index,
                 kanbanColumnId: parseInt(columnId)
             },
         });

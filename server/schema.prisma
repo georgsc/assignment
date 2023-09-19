@@ -18,6 +18,7 @@ model KanbanItem {
   id             Int          @id @default(autoincrement())
   name           String
   done           Boolean      @default(false)
+  index          Int
   KanbanColumn   KanbanColumn @relation(fields: [kanbanColumnId], references: [id])
   kanbanColumnId Int
 }

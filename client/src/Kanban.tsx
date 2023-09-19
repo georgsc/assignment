@@ -18,6 +18,7 @@ const KANBAN_QUERY = graphql(/* GraphQL */`
                 id
                 name
                 done
+                index
             }
         }
     }
@@ -29,22 +30,24 @@ const MUTATE_MOVE_ITEM = graphql(/* GraphQL */`
             id
             name
             done
+            index
         }
     }
 `)
 
 const MUTATE_ADD_ITEM = graphql(/* GraphQL */`
-    mutation AddItem($name: String!, $columnId: ID!) {
-        addItem(name: $name, columnId: $columnId) {
+    mutation AddItem($name: String!, $columnId: ID!, $index: Int!) {
+        addItem(name: $name, columnId: $columnId, index: $index) {
             id
             name
             done
+            index
         }
     }
 `)
 
 export function Kanban() {
-    const {data} = useQuery({
+    const {data, status} = useQuery({
         queryKey: ['kanban'],
         queryFn: async () =>
             request(
@@ -76,6 +79,7 @@ export function Kanban() {
                 if (!item) {
                     throw new Error('Item not found')
                 }
+                item.index = index;
                 columnFrom.items = columnFrom.items.filter(item => item.id !== itemId)
                 columnTo.items.splice(index, 0, item)
                 return {kanban}
@@ -102,20 +106,41 @@ export function Kanban() {
         if (result.destination.index === result.source.index && result.source.droppableId === result.destination.droppableId) return;
         if (result.reason === 'CANCEL') return;
         if (result.type === 'item') {
-            await mutation.mutate({
-                index: result.destination.index,
-                itemId: result.draggableId,
-                toListId: result.destination.droppableId,
-            });
+            const index = result.destination.index;
+            const itemId = result.draggableId;
+            const toListId = result.destination.droppableId;
+            const columnFrom = data?.kanban.find(column => column.items.find(item => item.id === itemId))
+            const columnTo = data?.kanban.find(column => column.id === toListId)
+            if (columnFrom !== undefined && columnTo !== undefined) {
+                const item = columnFrom.items.find(item => item.id === itemId)
+                columnFrom.items = columnFrom.items.filter(item => item.id !== itemId)
+                if (item) {
+                    columnTo.items.splice(index, 0, item);
+                }
+                columnFrom.items.map((item, index) => {
+                    mutation.mutate({
+                        index: index,
+                        itemId: item.id,
+                        toListId: columnFrom.id,
+                    });
+                })
+                columnTo.items.map((item, index) => {
+                    mutation.mutate({
+                        index: index,
+                        itemId: item.id,
+                        toListId: columnTo.id,
+                    });
+                })
+            }
         }
         if(result.type === 'column' && result.destination.droppableId === 'kanban') {
             //TODO: move column
         }
 
-    }, [])
+    }, [data?.kanban])
 
     const addMutation = useMutation({
-        mutationFn: async (variables: { name: string, columnId: string}) =>
+        mutationFn: async (variables: { name: string, columnId: string, index: number}) =>
             request(
                 GRAPHQL_SERVER,
                 MUTATE_ADD_ITEM,
@@ -136,8 +161,8 @@ export function Kanban() {
         }
     });
 
-    function handleAddItem(name: string, columnId: string): void {
-        addMutation.mutate({name, columnId});
+    function handleAddItem(name: string, columnId: string, index: number): void {
+        addMutation.mutate({name, columnId, index});
     }
 
     return (
