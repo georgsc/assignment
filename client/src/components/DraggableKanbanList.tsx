@@ -1,8 +1,9 @@
 import {Draggable, Droppable} from "react-beautiful-dnd";
 import {KanbanList} from "./KanbanList";
-import {Button, Stack} from "@mui/material";
+import {Button, Stack, TextField} from "@mui/material";
 import {DraggableKanbanItem} from "./DraggableKanbanItem";
 import {KanbanItem} from "../gql/graphql";
+import {useRef, useState} from "react";
 
 interface IProps {
     index: any;
@@ -13,9 +14,37 @@ interface IProps {
 }
 
 export function DraggableKanbanList(props: IProps): JSX.Element {
+    const [text, setText] = useState<string>("");
+    const [isAdding, setIsAdding] = useState<boolean>(false);
+    const inputRef = useRef<any>(null);
     function handleButtonClick(e: any){
         e.preventDefault();
-        props.handleAddItem("Card" + new Date().getSeconds().toString(), props.id, props.items.length);
+        setIsAdding(prevState => !prevState)
+        if (!isAdding) {
+            if (inputRef.current !== null) {
+                inputRef.current.focus();
+            }
+        } else {
+            setText("");
+        }
+    }
+
+    function onTextChange(e: any): void {
+        e.preventDefault();
+        const text: string = e.target.value;
+        setText(text);
+        setIsAdding(true);
+    }
+
+    function onTextKeyDown(e: any): void {
+        if (e.keyCode === 13 && text.length > 0) {
+            props.handleAddItem(text, props.id, props.items.length);
+            setText("");
+        }
+        if (e.keyCode === 27) {
+            setIsAdding(false);
+            setText("");
+        }
     }
 
     return <Draggable draggableId={"column" + props.id} index={props.index}>
@@ -40,8 +69,14 @@ export function DraggableKanbanList(props: IProps): JSX.Element {
                         </Stack>
                     )}
                 </Droppable>
+                {isAdding && <TextField value={text}
+                                        onKeyDown={onTextKeyDown}
+                                        onChange={onTextChange}
+                                        placeholder={"Card name"}
+                                        inputRef={inputRef}/>}
+
                 <Button onClick={handleButtonClick}>
-                    Add item
+                    {isAdding ? "Cancel" : "Add item"}
                 </Button>
             </KanbanList>
         )}
