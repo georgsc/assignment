@@ -5,11 +5,14 @@ type Query {
 type Mutation {
     moveItem(itemId: ID!, toListId: ID!, index: Int!): KanbanItem!
     addItem(name: String!, columnId: ID!, index: Int!): KanbanItem!
+    moveColumn(columnId: ID!, index: Int!): KanbanColumn!
+    addColumn(name: String!, index: Int!): KanbanColumn!
 }
 
 type KanbanColumn {
     id: ID!
     name: String!
+    index: Int!
     items: [KanbanItem!]!
 }
 

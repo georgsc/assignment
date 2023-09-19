@@ -13,9 +13,11 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Therefore it is highly recommended to use the babel or swc plugin for production.
  */
 const documents = {
-    "\n    query Kanban {\n        kanban {\n            id\n            name\n            items {\n                id\n                name\n                done\n                index\n            }\n        }\n    }\n": types.KanbanDocument,
+    "\n    query Kanban {\n        kanban {\n            id\n            name\n            index\n            items {\n                id\n                name\n                done\n                index\n            }\n        }\n    }\n": types.KanbanDocument,
     "\n    mutation MoveItem($itemId: ID!, $toListId: ID!, $index: Int!) {\n        moveItem(itemId: $itemId, toListId: $toListId, index: $index) {\n            id\n            name\n            done\n            index\n        }\n    }\n": types.MoveItemDocument,
     "\n    mutation AddItem($name: String!, $columnId: ID!, $index: Int!) {\n        addItem(name: $name, columnId: $columnId, index: $index) {\n            id\n            name\n            done\n            index\n        }\n    }\n": types.AddItemDocument,
+    "\n    mutation MoveColumn($columnId: ID!,$index: Int!) {\n        moveColumn(columnId: $columnId, index: $index) {\n            id\n            name\n            index            \n        }\n    }\n": types.MoveColumnDocument,
+    "\n    mutation AddColumn($name: String!, $index: Int!) {\n        addColumn(name: $name,  index: $index) {\n            id\n            name\n            index\n        }\n    }\n": types.AddColumnDocument,
 };
 
 /**
@@ -35,7 +37,7 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    query Kanban {\n        kanban {\n            id\n            name\n            items {\n                id\n                name\n                done\n                index\n            }\n        }\n    }\n"): (typeof documents)["\n    query Kanban {\n        kanban {\n            id\n            name\n            items {\n                id\n                name\n                done\n                index\n            }\n        }\n    }\n"];
+export function graphql(source: "\n    query Kanban {\n        kanban {\n            id\n            name\n            index\n            items {\n                id\n                name\n                done\n                index\n            }\n        }\n    }\n"): (typeof documents)["\n    query Kanban {\n        kanban {\n            id\n            name\n            index\n            items {\n                id\n                name\n                done\n                index\n            }\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -44,6 +46,14 @@ export function graphql(source: "\n    mutation MoveItem($itemId: ID!, $toListId
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation AddItem($name: String!, $columnId: ID!, $index: Int!) {\n        addItem(name: $name, columnId: $columnId, index: $index) {\n            id\n            name\n            done\n            index\n        }\n    }\n"): (typeof documents)["\n    mutation AddItem($name: String!, $columnId: ID!, $index: Int!) {\n        addItem(name: $name, columnId: $columnId, index: $index) {\n            id\n            name\n            done\n            index\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation MoveColumn($columnId: ID!,$index: Int!) {\n        moveColumn(columnId: $columnId, index: $index) {\n            id\n            name\n            index            \n        }\n    }\n"): (typeof documents)["\n    mutation MoveColumn($columnId: ID!,$index: Int!) {\n        moveColumn(columnId: $columnId, index: $index) {\n            id\n            name\n            index            \n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation AddColumn($name: String!, $index: Int!) {\n        addColumn(name: $name,  index: $index) {\n            id\n            name\n            index\n        }\n    }\n"): (typeof documents)["\n    mutation AddColumn($name: String!, $index: Int!) {\n        addColumn(name: $name,  index: $index) {\n            id\n            name\n            index\n        }\n    }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

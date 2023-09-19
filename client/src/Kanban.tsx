@@ -1,4 +1,4 @@
-import {Box, Stack} from "@mui/material";
+import {Box, Button, Stack} from "@mui/material";
 import {DragDropContext, Droppable, DropResult, ResponderProvided} from 'react-beautiful-dnd'
 import request from 'graphql-request'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
@@ -14,6 +14,7 @@ const KANBAN_QUERY = graphql(/* GraphQL */`
         kanban {
             id
             name
+            index
             items {
                 id
                 name
@@ -46,6 +47,26 @@ const MUTATE_ADD_ITEM = graphql(/* GraphQL */`
     }
 `)
 
+const MUTATE_MOVE_COLUMN = graphql(/* GraphQL */`
+    mutation MoveColumn($columnId: ID!,$index: Int!) {
+        moveColumn(columnId: $columnId, index: $index) {
+            id
+            name
+            index            
+        }
+    }
+`)
+
+const MUTATE_ADD_COLUMN = graphql(/* GraphQL */`
+    mutation AddColumn($name: String!, $index: Int!) {
+        addColumn(name: $name,  index: $index) {
+            id
+            name
+            index
+        }
+    }
+`)
+
 export function Kanban() {
     const {data, status} = useQuery({
         queryKey: ['kanban'],
@@ -58,7 +79,7 @@ export function Kanban() {
 
     const client = useQueryClient()
 
-    const mutation = useMutation({
+    const moveItemMutation = useMutation({
         mutationFn: async (variables: { itemId: string, toListId: string, index: number }) =>
             request(
                 GRAPHQL_SERVER,
@@ -101,6 +122,39 @@ export function Kanban() {
         }
     });
 
+    const moveColumnMutation = useMutation({
+        mutationFn: async (variables: { columnId: string, index: number }) =>
+            request(
+                GRAPHQL_SERVER,
+                MUTATE_MOVE_COLUMN,
+                variables,
+            ),
+        //optimistic update
+        onMutate: async ({index, columnId}) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                    old?.kanban.map((column) => {
+                        if (column.id === columnId) {
+                            return {...column, index: index}
+                        }
+                    });
+                    return old;
+                }
+            );
+        },
+        // update
+        onSuccess: (data, variables) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                    old?.kanban.map((column) => {
+                        if (column.id === variables.columnId) {
+                            return data.moveColumn;
+                        }
+                    });
+                    return old;
+                }
+            );
+        }
+    });
+
     const handleOnDragEnd = useCallback(async (result: DropResult, provided: ResponderProvided) => {
         if (!result.destination) return;
         if (result.destination.index === result.source.index && result.source.droppableId === result.destination.droppableId) return;
@@ -118,14 +172,14 @@ export function Kanban() {
                     columnTo.items.splice(index, 0, item);
                 }
                 columnFrom.items.map((item, index) => {
-                    mutation.mutate({
+                    moveItemMutation.mutate({
                         index: index,
                         itemId: item.id,
                         toListId: columnFrom.id,
                     });
                 })
                 columnTo.items.map((item, index) => {
-                    mutation.mutate({
+                    moveItemMutation.mutate({
                         index: index,
                         itemId: item.id,
                         toListId: columnTo.id,
@@ -134,12 +188,25 @@ export function Kanban() {
             }
         }
         if(result.type === 'column' && result.destination.droppableId === 'kanban') {
-            //TODO: move column
+            const newPos = result.destination.index;
+            const columnId = result.draggableId.substring(6);
+            const columnToMove =  data?.kanban.find(column => column.id === columnId)
+            const remaining = data?.kanban.filter(column => column.id !== columnId)
+            if (remaining !== undefined && columnToMove !== undefined) {
+                remaining.splice(newPos, 0, columnToMove);
+                remaining.map((movedColumn, index) => {
+                    moveColumnMutation.mutate({
+                        index: index,
+                        columnId: movedColumn.id
+                    });
+                    movedColumn.index = index;
+                });
+            }
         }
 
     }, [data?.kanban])
 
-    const addMutation = useMutation({
+    const addItemMutation = useMutation({
         mutationFn: async (variables: { name: string, columnId: string, index: number}) =>
             request(
                 GRAPHQL_SERVER,
@@ -162,7 +229,30 @@ export function Kanban() {
     });
 
     function handleAddItem(name: string, columnId: string, index: number): void {
-        addMutation.mutate({name, columnId, index});
+        addItemMutation.mutate({name, columnId, index});
+    }
+
+    const addColumnMutation = useMutation({
+        mutationFn: async (variables: { name: string, index: number}) =>
+            request(
+                GRAPHQL_SERVER,
+                MUTATE_ADD_COLUMN,
+                variables,
+            ),
+        onSuccess: (data, variables) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                    old?.kanban.push({id: data.addColumn.id,name: data.addColumn.name, index: data.addColumn.index, items: []});
+                    return old;
+                }
+            )
+        }
+    });
+
+    function handleAddColumn(e: any): void {
+        e.preventDefault();
+        const name: string = "column";
+        const index: number = data?.kanban.length ? data.kanban.length : 0;
+        addColumnMutation.mutate({name, index});
     }
 
     return (
@@ -176,7 +266,7 @@ export function Kanban() {
                         >
                             {
                                 data?.kanban
-                                    .sort((a, b) => a.id > b.id ? 1 : -1)
+                                    .sort((a, b) => a.index > b.index ? 1 : -1)
                                     .map((list, index) => (
                                         <DraggableKanbanList key={list.id}
                                                              id={list.id}
@@ -187,6 +277,9 @@ export function Kanban() {
                                     ))
                             }
                             {provided.placeholder}
+                            <Button onClick={handleAddColumn}>
+                                Add column
+                            </Button>
                         </Stack>
                     )}
                 </Droppable>

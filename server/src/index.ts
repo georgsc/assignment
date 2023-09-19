@@ -37,6 +37,24 @@ const root = {
                 kanbanColumnId: parseInt(columnId)
             },
         });
+    },
+    moveColumn: async ({columnId, index}: {columnId: string, index: number}) => {
+        return prisma.kanbanColumn.update({
+            where: {
+                id: parseInt(columnId)
+            },
+            data: {
+                index: index
+            },
+        });
+    },
+    addColumn: async ({name, index}: {name: string, index: number}) => {
+        return prisma.kanbanColumn.create({
+            data: {
+                name: name,
+                index: index
+            },
+        });
     }
 }
 

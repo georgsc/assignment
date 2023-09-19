@@ -11,6 +11,7 @@ datasource db {
 model KanbanColumn {
   id    Int          @id @default(autoincrement())
   name  String?
+  index Int
   items KanbanItem[]
 }
 
