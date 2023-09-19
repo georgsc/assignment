@@ -1,4 +1,4 @@
-import {Box, Button, Stack} from "@mui/material";
+import {Box, Stack} from "@mui/material";
 import {DragDropContext, Droppable, DropResult, ResponderProvided} from 'react-beautiful-dnd'
 import request from 'graphql-request'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import {graphql} from './gql'
 import {useCallback} from "react";
 import {DraggableKanbanList} from "./components/DraggableKanbanList";
 import {KanbanQuery} from "./gql/graphql";
+import {ButtonInput} from "./components/ButtonInput";
 
 const GRAPHQL_SERVER = 'http://localhost:4000/graphql';
 
@@ -248,11 +249,9 @@ export function Kanban() {
         }
     });
 
-    function handleAddColumn(e: any): void {
-        e.preventDefault();
-        const name: string = "column";
+    function submitText(text: string): void {
         const index: number = data?.kanban.length ? data.kanban.length : 0;
-        addColumnMutation.mutate({name, index});
+        addColumnMutation.mutate({name: text, index: index});
     }
 
     return (
@@ -277,12 +276,13 @@ export function Kanban() {
                                     ))
                             }
                             {provided.placeholder}
-                            <Button onClick={handleAddColumn}>
-                                Add column
-                            </Button>
+                            <ButtonInput buttonName={"Add column"}
+                                         inputPlaceholder={"Column name"}
+                                         submitText={submitText}/>
                         </Stack>
                     )}
                 </Droppable>
+
             </DragDropContext>
         </Box>
     );
