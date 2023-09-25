@@ -15,55 +15,55 @@ const KANBAN_QUERY = graphql(/* GraphQL */`
         kanban {
             id
             name
-            index
+            order
             items {
                 id
                 name
                 done
-                index
+                order
             }
         }
     }
 `)
 
 const MUTATE_MOVE_ITEM = graphql(/* GraphQL */`
-    mutation MoveItem($itemId: ID!, $toListId: ID!, $index: Int!) {
-        moveItem(itemId: $itemId, toListId: $toListId, index: $index) {
+    mutation MoveItem($itemId: ID!, $toListId: ID!, $order: Int!) {
+        moveItem(itemId: $itemId, toListId: $toListId, order: $order) {
             id
             name
             done
-            index
+            order
         }
     }
 `)
 
 const MUTATE_ADD_ITEM = graphql(/* GraphQL */`
-    mutation AddItem($name: String!, $columnId: ID!, $index: Int!) {
-        addItem(name: $name, columnId: $columnId, index: $index) {
+    mutation AddItem($name: String!, $columnId: ID!, $order: Int!) {
+        addItem(name: $name, columnId: $columnId, order: $order) {
             id
             name
             done
-            index
+            order
         }
     }
 `)
 
 const MUTATE_MOVE_COLUMN = graphql(/* GraphQL */`
-    mutation MoveColumn($columnId: ID!,$index: Int!) {
-        moveColumn(columnId: $columnId, index: $index) {
+    mutation MoveColumn($columnId: ID!,$order: Int!) {
+        moveColumn(columnId: $columnId, order: $order) {
             id
             name
-            index            
+            order            
         }
     }
 `)
 
 const MUTATE_ADD_COLUMN = graphql(/* GraphQL */`
-    mutation AddColumn($name: String!, $index: Int!) {
-        addColumn(name: $name,  index: $index) {
+    mutation AddColumn($name: String!, $order: Int!) {
+        addColumn(name: $name, order: $order) {
             id
             name
-            index
+            order
         }
     }
 `)
@@ -81,42 +81,32 @@ export function Kanban() {
     const client = useQueryClient()
 
     const moveItemMutation = useMutation({
-        mutationFn: async (variables: { itemId: string, toListId: string, index: number }) =>
+        mutationFn: async (variables: { itemId: string, toListId: string, order: number }) =>
             request(
                 GRAPHQL_SERVER,
                 MUTATE_MOVE_ITEM,
                 variables,
             ),
-        //optimistic update
-        onMutate: async ({index, itemId, toListId}) => {
+        onMutate: async (variables) => {
+            await client.cancelQueries({ queryKey: ['kanban'] });
             client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
-                if(!old) return old;
-                const kanban = old.kanban
-                const columnFrom = kanban.find(column => column.items.find(item => item.id === itemId))
-                const columnTo = kanban.find(column => column.id === toListId)
-                if (!columnFrom || !columnTo) {
-                    throw new Error('Column not found')
+                if (!old) {
+                    return old;
                 }
-                const item = columnFrom.items.find(item => item.id === itemId)
-                if (!item) {
-                    throw new Error('Item not found')
-                }
-                item.index = index;
-                columnFrom.items = columnFrom.items.filter(item => item.id !== itemId)
-                columnTo.items.splice(index, 0, item)
-                return {kanban}
-            })
+                const newColumns = old.kanban.map((column) => {
+                    const newItems = column.items.map((item) => {
+                        if (item.id === variables.itemId) {
+                            return {...item, order: variables.order}
+                        }
+                        return item;
+                    });
+                    return {...column, items: newItems};
+                });
+                return {...old, kanban: newColumns}
+            });
         },
-        // update
         onSuccess: (data, variables) => {
             client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
-                    old?.kanban.map((column) => {
-                        if (column.id === variables.toListId) {
-                            const remainingItems = column.items.filter(item => item.id.toString() !== variables.itemId.toString());
-                            remainingItems.push(data.moveItem);
-                            return {...column, items: remainingItems}
-                        }
-                    });
                     return old;
                 }
             );
@@ -124,35 +114,128 @@ export function Kanban() {
     });
 
     const moveColumnMutation = useMutation({
-        mutationFn: async (variables: { columnId: string, index: number }) =>
+        mutationFn: async (variables: { columnId: string, order: number }) =>
             request(
                 GRAPHQL_SERVER,
                 MUTATE_MOVE_COLUMN,
                 variables,
             ),
-        //optimistic update
-        onMutate: async ({index, columnId}) => {
+        onMutate: async ({order, columnId}) => {
+            await client.cancelQueries({ queryKey: ['kanban'] })
             client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
-                    old?.kanban.map((column) => {
-                        if (column.id === columnId) {
-                            return {...column, index: index}
-                        }
-                    });
+                if (!old) {
                     return old;
                 }
-            );
+                const newColumns= old.kanban.map((column) => {
+                    if (column.id === columnId) {
+                        return {...column, order: order}
+                    }
+                    return column;
+                });
+                return {...old, kanban: newColumns};
+            });
         },
-        // update
         onSuccess: (data, variables) => {
             client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
-                    old?.kanban.map((column) => {
-                        if (column.id === variables.columnId) {
-                            return data.moveColumn;
-                        }
-                    });
+                return old;
+            });
+        }
+    });
+
+    const addItemMutation = useMutation({
+        mutationFn: async (variables: { name: string, columnId: string, order: number}) =>
+            request(
+                GRAPHQL_SERVER,
+                MUTATE_ADD_ITEM,
+                variables,
+            ),
+        onMutate: async (variables) => {
+            await client.cancelQueries({ queryKey: ['kanban'] });
+            const optimisticItem = { id: crypto.randomUUID(), name: variables.name, order: variables.order, done: false };
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                if (!old) {
                     return old;
                 }
-            );
+                const newColumns = old.kanban.map((column) => {
+                    if (column.id === variables.columnId) {
+                        column.items.push(optimisticItem);
+                    }
+                    return column;
+                });
+                return {...old, kanban: newColumns};
+            });
+            return { optimisticItem };
+        },
+        onSuccess: (result, variables, context) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                if (!old) {
+                    return old;
+                }
+                const newColumn = old.kanban.map((column) => {
+                    if (column.id === variables.columnId && context !== undefined) {
+                        const allItems = column.items.filter((item) => item.id !== context.optimisticItem.id);
+                        allItems.push(result.addItem);
+                        return {...column, items: allItems}
+                    }
+                    return column;
+                });
+                return {...old, kanban: newColumn};
+            });
+        },
+        onError: (error, variables, context) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                if (!old) {
+                    return old;
+                }
+                const newColumn = old.kanban.map((column) => {
+                    if (column.id === variables.columnId && context !== undefined) {
+                        const oldItems = column.items.filter((item) => item.id !== context.optimisticItem.id);
+                        return {...column, items: oldItems}
+                    }
+                    return column;
+                });
+                return {...old, kanban: newColumn};
+            });
+        }
+    });
+
+    const addColumnMutation = useMutation({
+        mutationFn: async (variables: { name: string, order: number}) =>
+            request(
+                GRAPHQL_SERVER,
+                MUTATE_ADD_COLUMN,
+                variables,
+            ),
+        onMutate: async (variables) => {
+            await client.cancelQueries({ queryKey: ['kanban'] })
+            const optimisticColumn = { id: crypto.randomUUID(), name: variables.name, order: variables.order, items: [] };
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                if (!old) {
+                    return old;
+                }
+                old.kanban.push(optimisticColumn);
+                return old;
+            });
+            return { optimisticColumn };
+        },
+        onSuccess: (data, variables, context) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                if (old) {
+                    const allColumns = old?.kanban.filter((column) => column.id !== context?.optimisticColumn.id);
+                    allColumns.push({id: data.addColumn.id,name: data.addColumn.name, order: data.addColumn.order, items: []});
+                    return {...old, kanban: allColumns}
+                }
+                return old;
+            });
+        },
+        onError: (error, variables, context) => {
+            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
+                if (old) {
+                    const oldColumns = old?.kanban.filter((column) => column.id !== context?.optimisticColumn.id);
+                    return {...old, kanban: oldColumns}
+                }
+                return old;
+            });
         }
     });
 
@@ -161,7 +244,6 @@ export function Kanban() {
         if (result.destination.index === result.source.index && result.source.droppableId === result.destination.droppableId) return;
         if (result.reason === 'CANCEL') return;
         if (result.type === 'item') {
-            const index = result.destination.index;
             const itemId = result.draggableId;
             const toListId = result.destination.droppableId;
             const columnFrom = data?.kanban.find(column => column.items.find(item => item.id === itemId))
@@ -170,18 +252,20 @@ export function Kanban() {
                 const item = columnFrom.items.find(item => item.id === itemId)
                 columnFrom.items = columnFrom.items.filter(item => item.id !== itemId)
                 if (item) {
-                    columnTo.items.splice(index, 0, item);
+                    columnTo.items.splice(result.destination.index, 0, item);
                 }
-                columnFrom.items.map((item, index) => {
-                    moveItemMutation.mutate({
-                        index: index,
-                        itemId: item.id,
-                        toListId: columnFrom.id,
-                    });
-                })
+                if (result.source.droppableId !== toListId) {
+                    columnFrom.items.map((item, index) => {
+                        moveItemMutation.mutate({
+                            order: index,
+                            itemId: item.id,
+                            toListId: columnFrom.id,
+                        });
+                    })
+                }
                 columnTo.items.map((item, index) => {
                     moveItemMutation.mutate({
-                        index: index,
+                        order: index,
                         itemId: item.id,
                         toListId: columnTo.id,
                     });
@@ -197,63 +281,24 @@ export function Kanban() {
                 remaining.splice(newPos, 0, columnToMove);
                 remaining.map((movedColumn, index) => {
                     moveColumnMutation.mutate({
-                        index: index,
+                        order: index,
                         columnId: movedColumn.id
                     });
-                    movedColumn.index = index;
+                    movedColumn.order = index;
                 });
             }
         }
 
     }, [data?.kanban])
 
-    const addItemMutation = useMutation({
-        mutationFn: async (variables: { name: string, columnId: string, index: number}) =>
-            request(
-                GRAPHQL_SERVER,
-                MUTATE_ADD_ITEM,
-                variables,
-            ),
-        onSuccess: (data, variables) => {
-            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
-                    old?.kanban.map((column) => {
-                        if (column.id === variables.columnId) {
-                            const allItems = column.items;
-                            allItems.push(data.addItem);
-                            return {...column, items: allItems}
-                        }
-                    });
-                    return old;
-                }
-            )
-        }
-    });
-
-    function handleAddItem(name: string, columnId: string, index: number): void {
-        addItemMutation.mutate({name, columnId, index});
+    function handleAddItem(name: string, columnId: string, order: number): void {
+        addItemMutation.mutate({name, columnId, order});
     }
-
-    const addColumnMutation = useMutation({
-        mutationFn: async (variables: { name: string, index: number}) =>
-            request(
-                GRAPHQL_SERVER,
-                MUTATE_ADD_COLUMN,
-                variables,
-            ),
-        onSuccess: (data, variables) => {
-            client.setQueryData(['kanban'], (old: KanbanQuery | undefined) => {
-                    old?.kanban.push({id: data.addColumn.id,name: data.addColumn.name, index: data.addColumn.index, items: []});
-                    return old;
-                }
-            )
-        }
-    });
 
     function submitText(text: string): void {
-        const index: number = data?.kanban.length ? data.kanban.length : 0;
-        addColumnMutation.mutate({name: text, index: index});
+        const currentPosition: number = data?.kanban.length ? data.kanban.length : 0;
+        addColumnMutation.mutate({name: text, order: currentPosition});
     }
-
     return (
         <Box sx={{paddingBottom: 4}}>
             <DragDropContext onDragEnd={handleOnDragEnd}>
@@ -265,7 +310,7 @@ export function Kanban() {
                         >
                             {
                                 data?.kanban
-                                    .sort((a, b) => a.index > b.index ? 1 : -1)
+                                    .sort((a, b) => a.order > b.order ? 1 : -1)
                                     .map((list, index) => (
                                         <DraggableKanbanList key={list.id}
                                                              id={list.id}

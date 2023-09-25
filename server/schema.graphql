@@ -3,16 +3,16 @@ type Query {
 }
 
 type Mutation {
-    moveItem(itemId: ID!, toListId: ID!, index: Int!): KanbanItem!
-    addItem(name: String!, columnId: ID!, index: Int!): KanbanItem!
-    moveColumn(columnId: ID!, index: Int!): KanbanColumn!
-    addColumn(name: String!, index: Int!): KanbanColumn!
+    moveItem(itemId: ID!, toListId: ID!, order: Int!): KanbanItem!
+    addItem(name: String!, columnId: ID!, order: Int!): KanbanItem!
+    moveColumn(columnId: ID!, order: Int!): KanbanColumn!
+    addColumn(name: String!, order: Int!): KanbanColumn!
 }
 
 type KanbanColumn {
     id: ID!
     name: String!
-    index: Int!
+    order: Int!
     items: [KanbanItem!]!
 }
 
@@ -20,5 +20,5 @@ type KanbanItem {
     id: ID!
     name: String!
     done: Boolean!
-    index: Int!
+    order: Int!
 }

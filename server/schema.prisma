@@ -11,7 +11,7 @@ datasource db {
 model KanbanColumn {
   id    Int          @id @default(autoincrement())
   name  String?
-  index Int
+  order Int
   items KanbanItem[]
 }
 
@@ -19,7 +19,7 @@ model KanbanItem {
   id             Int          @id @default(autoincrement())
   name           String
   done           Boolean      @default(false)
-  index          Int
+  order          Int
   KanbanColumn   KanbanColumn @relation(fields: [kanbanColumnId], references: [id])
   kanbanColumnId Int
 }

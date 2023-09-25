@@ -10,7 +10,7 @@ interface IProps {
     title: string;
     items: KanbanItem[];
     id: string;
-    handleAddItem: (name: string, columnId: string, index: number) => void;
+    handleAddItem: (name: string, columnId: string, order: number) => void;
 }
 
 export function DraggableKanbanList(props: IProps): JSX.Element {
@@ -31,7 +31,7 @@ export function DraggableKanbanList(props: IProps): JSX.Element {
                                {...provided.droppableProps}>
                             {
                                 props.items
-                                    .sort((a, b) => a.index > b.index ? 1 : -1)
+                                    .sort((a, b) => a.order > b.order ? 1 : -1)
                                     .map((item, index) => (
                                     <DraggableKanbanItem key={item.id} item={item} index={index}/>
                                 ))

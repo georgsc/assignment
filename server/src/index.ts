@@ -17,42 +17,42 @@ const root = {
             },
         });
     },
-    moveItem: async ({itemId, toListId, index}: {itemId: string, toListId: string, index: number}) => {
+    moveItem: async ({itemId, toListId, order}: {itemId: string, toListId: string, order: number}) => {
         return prisma.kanbanItem.update({
             where: {
                 id: parseInt(itemId)
             },
             data: {
-                index: index,
+                order: order,
                 kanbanColumnId: parseInt(toListId),
             },
         });
     },
-    addItem: async ({name, columnId, index}: {name: string, columnId: string, index: number}) => {
+    addItem: async ({name, columnId, order}: {name: string, columnId: string, order: number}) => {
         return prisma.kanbanItem.create({
             data: {
                 name: name,
                 done: false,
-                index: index,
+                order: order,
                 kanbanColumnId: parseInt(columnId)
             },
         });
     },
-    moveColumn: async ({columnId, index}: {columnId: string, index: number}) => {
+    moveColumn: async ({columnId, order}: {columnId: string, order: number}) => {
         return prisma.kanbanColumn.update({
             where: {
                 id: parseInt(columnId)
             },
             data: {
-                index: index
+                order: order
             },
         });
     },
-    addColumn: async ({name, index}: {name: string, index: number}) => {
+    addColumn: async ({name, order}: {name: string, order: number}) => {
         return prisma.kanbanColumn.create({
             data: {
                 name: name,
-                index: index
+                order: order
             },
         });
     }
